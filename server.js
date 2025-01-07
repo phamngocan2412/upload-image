@@ -10,7 +10,7 @@ const serviceAccount = require('./path/to/serviceAccountKey.json'); // Thay bằ
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  storageBucket: 'project-vlu-f890e.firebasestorage.app', // Thay bằng bucket name của bạn
+  storageBucket: 'your-bucket-name.appspot.com', // Thay bằng bucket name của bạn
 });
 
 const bucket = admin.storage().bucket();
