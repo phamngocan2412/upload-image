@@ -1,19 +1,17 @@
+// 
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
-const admin = require('firebase-admin');
+const cloudinary = require('cloudinary').v2;
 
-// Khởi tạo Firebase Admin SDK
-const serviceAccount = require('./path/to/serviceAccountKey.json'); // Thay bằng đường dẫn đến file serviceAccountKey.json
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  storageBucket: 'your-bucket-name.appspot.com', // Thay bằng bucket name của bạn
+// Cấu hình Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
-
-const bucket = admin.storage().bucket();
 
 // Tạo một instance của express app
 const app = express();
@@ -47,33 +45,17 @@ app.post('/upload', upload.single('image'), async (req, res) => {
   }
 
   try {
-    // Tải hình ảnh lên Firebase Storage
-    const file = bucket.file(req.file.filename);
-    const stream = file.createWriteStream({
-      metadata: {
-        contentType: req.file.mimetype,
-      },
+    // Tải hình ảnh lên Cloudinary
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'uploads', // Thư mục lưu trữ trên Cloudinary (tùy chọn)
     });
 
-    stream.on('error', (err) => {
-      console.error('Lỗi khi tải lên Firebase Storage:', err);
-      res.status(500).send('Lỗi khi tải lên hình ảnh');
-    });
+    // Lấy URL công khai của hình ảnh
+    const imageUrl = result.secure_url;
+    res.status(200).send({ imageUrl });
 
-    stream.on('finish', async () => {
-      // Làm cho hình ảnh có thể truy cập công khai
-      await file.makePublic();
-
-      // Lấy URL công khai của hình ảnh
-      const imageUrl = `https://storage.googleapis.com/${bucket.name}/${file.name}`;
-      res.status(200).send({ imageUrl });
-
-      // Xóa tệp tạm thời sau khi tải lên thành công
-      fs.unlinkSync(req.file.path);
-    });
-
-    // Đọc tệp và ghi vào Firebase Storage
-    fs.createReadStream(req.file.path).pipe(stream);
+    // Xóa tệp tạm thời sau khi tải lên thành công
+    fs.unlinkSync(req.file.path);
   } catch (error) {
     console.error('Lỗi:', error);
     res.status(500).send('Lỗi server');
